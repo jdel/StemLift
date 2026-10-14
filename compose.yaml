@@ -1,0 +1,9 @@
+services:
+  stemlift:
+    build: .
+    image: stemlift
+    container_name: stemlift
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./assets:/work/stem_extracts

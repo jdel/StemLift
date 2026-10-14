@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StemLift</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main>
+    <header>
+      <span class="eyebrow">LOCAL STEM SEPARATION</span>
+      <h1>StemLift</h1>
+      <p>Separate instruments or create a backing track without uploading your music.</p>
+    </header>
+
+    <section class="file-selection" aria-labelledby="source-heading">
+      <h2 id="source-heading">Source and destination</h2>
+      <button id="choose-audio" class="picker" type="button">
+        <span>Select an audio file</span>
+        <small id="audio-path">MP3, WAV, FLAC, or OGG</small>
+      </button>
+      <button id="choose-output" class="picker" type="button">
+        <span>Select an output folder</span>
+        <small id="output-path">Extracted tracks will be saved here</small>
+      </button>
+      <label class="format">
+        <span>Output format</span>
+        <select id="format">
+          <option value="mp3">MP3</option>
+          <option value="wav">WAV</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="actions" aria-labelledby="extract-heading">
+      <h2 id="extract-heading">Extract individual stems</h2>
+      <p>Each checked instrument becomes a separate file.</p>
+      <div class="stem-grid">
+        <label><input name="stems-stem" type="checkbox" value="vocals"> Vocals</label>
+        <label><input name="stems-stem" type="checkbox" value="drums"> Drums</label>
+        <label><input name="stems-stem" type="checkbox" value="bass" checked> Bass</label>
+        <label><input name="stems-stem" type="checkbox" value="other"> Other</label>
+      </div>
+      <button class="primary" data-mode="stems" type="button">Extract selected stems</button>
+    </section>
+
+    <section class="actions" aria-labelledby="backing-heading">
+      <h2 id="backing-heading">Create a backing track</h2>
+      <p>Checked instruments will be removed. Everything else remains.</p>
+      <div class="stem-grid">
+        <label><input name="backing-stem" type="checkbox" value="vocals"> Vocals</label>
+        <label><input name="backing-stem" type="checkbox" value="drums"> Drums</label>
+        <label><input name="backing-stem" type="checkbox" value="bass"> Bass</label>
+        <label><input name="backing-stem" type="checkbox" value="other"> Other</label>
+      </div>
+      <button class="primary" data-mode="backing" type="button">Create backing track</button>
+    </section>
+
+    <section id="job" class="job" aria-live="polite">
+      <progress id="progress" max="100" hidden></progress>
+      <p id="status">Choose an audio file and output folder to begin.</p>
+      <ul id="outputs" hidden></ul>
+    </section>
+  </main>
+  <script type="module" src="/main.js"></script>
+</body>
+</html>
