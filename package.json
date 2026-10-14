@@ -1,0 +1,24 @@
+{
+  "name": "stemlift-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "desktop:dev": "npm run sidecar:dev && cd tauri && tauri dev",
+    "desktop:build": "npm run sidecar:build && cd tauri && tauri build",
+    "frontend:dev": "vite --host 127.0.0.1 --port 1420",
+    "frontend:build": "node scripts/build-frontend.mjs",
+    "sidecar:dev": "node scripts/prepare-dev-sidecar.mjs",
+    "sidecar:build": "node scripts/build-sidecar.mjs",
+    "tauri": "cd tauri && tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.12.3",
+    "@tauri-apps/plugin-dialog": "2.8.2",
+    "@tauri-apps/plugin-shell": "2.5.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.2",
+    "vite": "8.3.4"
+  }
+}

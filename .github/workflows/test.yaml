@@ -1,0 +1,104 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - "**"
+    tags-ignore:
+      - "*"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    env:
+      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: 0.13.0
+          enable-cache: true
+
+      - name: Lint
+        run: uv run --locked --group dev ruff check .
+
+      - name: Check formatting
+        run: uv run --locked --group dev ruff format --check .
+
+      - name: Test
+        run: uv run --locked python -m unittest discover -s tests
+
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2.9.2
+        with:
+          workspaces: tauri
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: 0.13.0
+          enable-cache: true
+
+      - name: Install Linux WebKit dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Audit frontend dependencies
+        run: npm audit --audit-level=high
+
+      - name: Build frontend
+        run: npm run frontend:build
+
+      - name: Prepare development sidecar
+        run: npm run sidecar:dev
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path tauri/Cargo.toml -- --check
+
+      - name: Lint Tauri shell
+        run: cargo clippy --locked --manifest-path tauri/Cargo.toml -- -D warnings
+
+      - name: Check Tauri shell
+        run: cargo check --locked --manifest-path tauri/Cargo.toml
+
+      - name: Build production CLI and sidecar
+        run: npm run sidecar:build
+
+      - name: Smoke-test production CLI and sidecar
+        shell: bash
+        run: |
+          dist/stemlift --help | grep -q "Extract audio stems and backing tracks"
+          tauri/binaries/stemlift-worker-$(rustc --print host-tuple) --help \
+            | grep -q "StemLift desktop worker"
