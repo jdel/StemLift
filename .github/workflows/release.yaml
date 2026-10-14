@@ -1,0 +1,296 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+      - v[0-9]+.[0-9]+.[0-9]+-preview.[0-9]+
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v1
+        with:
+          version: "latest"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Test Python code
+        run: uv run --locked python -m unittest discover -s tests
+
+      - name: Build frontend
+        run: npm run frontend:build
+
+      - name: Create draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          args=(--draft --generate-notes --title "StemLift ${GITHUB_REF_NAME}")
+          if [[ "$GITHUB_REF_NAME" == *-preview.* ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" "${args[@]}"
+
+  # Frozen CLI binaries and Tauri installers must be built on their native
+  # operating systems. Each job freezes Python/Demucs once, then publishes the
+  # executable as the CLI and bundles a renamed copy as the desktop worker.
+  tauri:
+    needs: prepare
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            bundles: app
+            artifact: tauri/target/release/bundle/macos/*.zip
+            signing_identity: "-"
+            cli_platform: darwin-arm64
+            cli_executable: stemlift
+            cli_extension: tar.gz
+          - os: windows-latest
+            bundles: nsis
+            artifact: tauri/target/release/bundle/nsis/*-setup.exe
+            signing_identity: ""
+            cli_platform: windows-amd64
+            cli_executable: stemlift.exe
+            cli_extension: zip
+          - os: ubuntu-latest
+            bundles: appimage,deb,rpm
+            artifact: tauri/target/release/bundle/appimage/*.AppImage tauri/target/release/bundle/deb/*.deb tauri/target/release/bundle/rpm/*.rpm
+            signing_identity: ""
+            cli_platform: linux-amd64
+            cli_executable: stemlift
+            cli_extension: tar.gz
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+      UV_LINK_MODE: copy
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v1
+        with:
+          version: "latest"
+
+      - name: Install Linux WebKit dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            libfuse2 \
+            patchelf \
+            build-essential
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Set app version from tag
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          temporary=$(mktemp)
+          jq --arg version "$version" '.version = $version' tauri/tauri.conf.json > "$temporary"
+          mv "$temporary" tauri/tauri.conf.json
+
+      - name: Build standalone CLI and bundled Python worker
+        run: npm run sidecar:build
+
+      - name: Package standalone CLI
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          archive="stemlift-${version}-${{ matrix.cli_platform }}.${{ matrix.cli_extension }}"
+          mkdir .release-cli
+          cp "dist/${{ matrix.cli_executable }}" README.md LICENSE .release-cli/
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            (cd .release-cli && 7z a "../${archive}" '*')
+          else
+            tar -czf "$archive" -C .release-cli .
+          fi
+
+      - name: Build desktop app
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ matrix.signing_identity }}
+        run: npm run tauri -- build --bundles ${{ matrix.bundles }}
+
+      - name: Zip macOS app
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          cd tauri/target/release/bundle/macos
+          ditto -c -k --keepParent *.app "StemLift_${GITHUB_REF_NAME#v}_macos.zip"
+
+      - name: Upload installer to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" \
+            ${{ matrix.artifact }} \
+            stemlift-*-${{ matrix.cli_platform }}.${{ matrix.cli_extension }} \
+            --clobber
+
+      - name: Create tap token
+        id: tap-token
+        if: runner.os == 'macOS'
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.JDEL_CROSS_REPO_PUSHER_APP_ID }}
+          private-key: ${{ secrets.JDEL_CROSS_REPO_PUSHER_PRIVATE_KEY }}
+          owner: "jdel"
+          repositories: "homebrew-tap"
+
+      - name: Publish StemLift casks
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.tap-token.outputs.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cli_archive="stemlift-${version}-darwin-arm64.tar.gz"
+          desktop_zip="tauri/target/release/bundle/macos/StemLift_${version}_macos.zip"
+          cli_sha=$(shasum -a 256 "$cli_archive" | awk '{print $1}')
+          desktop_sha=$(shasum -a 256 "$desktop_zip" | awk '{print $1}')
+          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/jdel/homebrew-tap.git" tap
+          sed -e "s/{{VERSION}}/${version}/g" -e "s/{{SHA256}}/${cli_sha}/g" \
+              .stemlift.rb.tmpl > tap/Casks/stemlift.rb
+          sed -e "s/{{VERSION}}/${version}/g" -e "s/{{SHA256}}/${desktop_sha}/g" \
+              .stemlift-desktop.rb.tmpl > tap/Casks/stemlift-desktop.rb
+          cd tap
+          git config user.name "stemlift[bot]"
+          git config user.email "noreply@jdel.org"
+          git add Casks/stemlift.rb Casks/stemlift-desktop.rb
+          git diff --cached --quiet || git commit -m "stemlift ${version}"
+          git push
+
+  container:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux/amd64
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare image tags
+        id: image
+        shell: bash
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "name=${image}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish container
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.image.outputs.name }}:${{ github.ref_name }}-${{ matrix.arch }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=container-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=container-${{ matrix.arch }}
+
+  container-manifest:
+    needs: container
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish multi-architecture container manifest
+        shell: bash
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          tags=(--tag "${image}:${GITHUB_REF_NAME}")
+          if [[ "$GITHUB_REF_NAME" != *-preview.* ]]; then
+            tags+=(--tag "${image}:latest")
+          fi
+          docker buildx imagetools create "${tags[@]}" \
+            "${image}:${GITHUB_REF_NAME}-amd64" \
+            "${image}:${GITHUB_REF_NAME}-arm64"
+          docker buildx imagetools inspect "${image}:${GITHUB_REF_NAME}"
+
+  # Un-drafts the release once every platform's CLI archive and desktop
+  # installer are uploaded and the multi-architecture container is published.
+  publish:
+    needs:
+      - container-manifest
+      - tauri
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --repo "$GITHUB_REPOSITORY"

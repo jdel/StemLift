@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "StemLift",
+  "version": "0.1.0",
+  "identifier": "com.jdel.stemlift",
+  "build": {
+    "beforeDevCommand": "npm run frontend:dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run frontend:build",
+    "frontendDist": "frontend-dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "StemLift",
+        "width": 560,
+        "height": 640,
+        "minWidth": 420,
+        "minHeight": 560
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost; style-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "externalBin": [
+      "binaries/stemlift-worker"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
