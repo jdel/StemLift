@@ -1,6 +1,6 @@
 FROM rust:1.99.0-slim-bookworm AS rust
 
-FROM python:3.14.7-slim-bookworm AS builder
+FROM python:3.15.0rc3-slim-bookworm AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/
 COPY --from=rust /usr/local/cargo /usr/local/cargo
@@ -28,7 +28,7 @@ RUN uv sync --locked --no-dev --no-editable \
     && .venv/bin/python -c "from demucs.pretrained import get_model; get_model('htdemucs')" \
     && chmod -R a+rX "$TORCH_HOME" /root/.cache/huggingface
 
-FROM python:3.14.7-slim-bookworm AS runtime
+FROM python:3.15.0rc3-slim-bookworm AS runtime
 
 # The runtime stage contains no Rust, C/C++ compiler, CMake, or uv tooling.
 
