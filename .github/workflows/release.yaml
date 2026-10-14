@@ -175,7 +175,7 @@ jobs:
       - name: Create tap token
         id: tap-token
         if: runner.os == 'macOS'
-        uses: actions/create-github-app-token@v3.2.0
+        uses: actions/create-github-app-token@v3.3.0
         with:
           app-id: ${{ secrets.JDEL_CROSS_REPO_PUSHER_APP_ID }}
           private-key: ${{ secrets.JDEL_CROSS_REPO_PUSHER_PRIVATE_KEY }}
