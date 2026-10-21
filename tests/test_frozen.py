@@ -5,6 +5,33 @@ from stemlift.frozen import main
 
 
 class FrozenEntrypointTest(unittest.TestCase):
+    def test_multiprocessing_helpers_are_handled_before_dispatch(self) -> None:
+        calls = []
+
+        def run_demucs(_arguments):
+            calls.append("demucs")
+            return False
+
+        with (
+            patch(
+                "stemlift.frozen.multiprocessing.freeze_support",
+                side_effect=lambda: calls.append("freeze_support"),
+            ),
+            patch(
+                "stemlift.frozen._configure_frozen_environment",
+                side_effect=lambda: calls.append("environment"),
+            ),
+            patch("stemlift.frozen._run_frozen_demucs", side_effect=run_demucs),
+            patch(
+                "stemlift.frozen.cli_main",
+                side_effect=lambda _arguments: calls.append("cli") or 0,
+            ),
+        ):
+            result = main(["--help"])
+
+        self.assertEqual(result, 0)
+        self.assertEqual(calls, ["freeze_support", "environment", "demucs", "cli"])
+
     def test_stemlift_name_runs_cli(self) -> None:
         with (
             patch("stemlift.frozen.sys.executable", "/tmp/stemlift"),

@@ -1,3 +1,4 @@
+import multiprocessing
 import sys
 from pathlib import Path
 from typing import Sequence
@@ -13,6 +14,7 @@ from stemlift.desktop_worker import (
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    multiprocessing.freeze_support()
     arguments = list(argv if argv is not None else sys.argv[1:])
     _configure_frozen_environment()
     if _run_frozen_demucs(arguments):
