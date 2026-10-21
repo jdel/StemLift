@@ -60,21 +60,18 @@ jobs:
           - os: macos-latest
             bundles: app
             artifact: tauri/target/release/bundle/macos/*.zip
-            signing_identity: "-"
             cli_platform: darwin-arm64
             cli_executable: stemlift
             cli_extension: tar.gz
           - os: windows-latest
             bundles: nsis
             artifact: tauri/target/release/bundle/nsis/*-setup.exe
-            signing_identity: ""
             cli_platform: windows-amd64
             cli_executable: stemlift.exe
             cli_extension: zip
           - os: ubuntu-latest
             bundles: appimage,deb,rpm
             artifact: tauri/target/release/bundle/appimage/*.AppImage tauri/target/release/bundle/deb/*.deb tauri/target/release/bundle/rpm/*.rpm
-            signing_identity: ""
             cli_platform: linux-amd64
             cli_executable: stemlift
             cli_extension: tar.gz
@@ -148,9 +145,9 @@ jobs:
             tar -czf "$archive" -C .release-cli .
           fi
 
+      # PyInstaller signs its Mach-O output. Re-signing the worker ad hoc with
+      # Tauri enables library validation and blocks the bundled libpython.
       - name: Build desktop app
-        env:
-          APPLE_SIGNING_IDENTITY: ${{ matrix.signing_identity }}
         run: npm run tauri -- build --bundles ${{ matrix.bundles }}
 
       - name: Zip macOS app
