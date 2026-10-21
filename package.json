@@ -8,6 +8,7 @@
     "desktop:build": "npm run sidecar:build && cd tauri && tauri build",
     "frontend:dev": "vite --host 127.0.0.1 --port 1420",
     "frontend:build": "node scripts/build-frontend.mjs",
+    "frontend:test": "node --test tests/frontend.test.mjs",
     "sidecar:dev": "node scripts/prepare-dev-sidecar.mjs",
     "sidecar:build": "node scripts/build-sidecar.mjs",
     "tauri": "cd tauri && tauri"

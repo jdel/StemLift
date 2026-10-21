@@ -29,8 +29,9 @@ Download the installer for your platform from the
 macOS app, `.exe` for Windows, or `.AppImage`/`.deb`/`.rpm` for Linux.
 
 The desktop app runs extraction locally, writes files directly to the folder
-you choose, and does not start an HTTP server. The first launch can take a
-moment while the bundled worker starts.
+containing the source audio by default, and does not start an HTTP server. You
+can choose a different output folder before starting. The first launch can
+take a moment while the bundled worker starts.
 
 > The desktop builds are unsigned, so macOS Gatekeeper and Windows SmartScreen
 > may warn on first launch.
@@ -111,13 +112,15 @@ stored under `assets/` on the host.
 Open the desktop app, then:
 
 1. Select an MP3, WAV, FLAC, or OGG audio file.
-2. Select an output folder.
+2. Optionally choose a different output folder.
 3. Choose MP3 or WAV output.
 4. Select instruments to extract or remove.
 5. Click **Extract selected stems** or **Create backing track**.
 
-The app writes results directly into the selected folder. A backing-track
-request must leave at least one stem unselected.
+The app writes results beside the source audio unless you select another
+folder. A backing-track request must leave at least one stem unselected. While
+an extraction runs, **Cancel extraction** stops the worker and its subprocesses.
+Use **View worker logs** to open diagnostic output in a separate window.
 
 ---
 

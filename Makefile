@@ -55,6 +55,7 @@ test: $(NODE_MODULES_STAMP)
 	uvx --from uv==0.13.0 uv run --locked --group dev ruff format --check .
 	uvx --from uv==0.13.0 uv run --locked python -m unittest discover -s tests
 	npm audit --audit-level=high
+	npm run frontend:test
 	npm run frontend:build
 	npm run sidecar:dev
 	cargo fmt --manifest-path tauri/Cargo.toml -- --check

@@ -15,9 +15,9 @@
         "label": "main",
         "title": "StemLift",
         "width": 560,
-        "height": 640,
+        "height": 580,
         "minWidth": 420,
-        "minHeight": 560
+        "minHeight": 480
       }
     ],
     "security": {

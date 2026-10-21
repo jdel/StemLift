@@ -32,6 +32,9 @@ jobs:
       - name: Test Python code
         run: uv run --locked python -m unittest discover -s tests
 
+      - name: Test frontend
+        run: npm run frontend:test
+
       - name: Build frontend
         run: npm run frontend:build
 

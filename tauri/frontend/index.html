@@ -8,12 +8,6 @@
 </head>
 <body>
   <main>
-    <header>
-      <span class="eyebrow">LOCAL STEM SEPARATION</span>
-      <h1>StemLift</h1>
-      <p>Separate instruments or create a backing track without uploading your music.</p>
-    </header>
-
     <section class="file-selection" aria-labelledby="source-heading">
       <h2 id="source-heading">Source and destination</h2>
       <button id="choose-audio" class="picker" type="button">
@@ -61,6 +55,10 @@
       <progress id="progress" max="100" hidden></progress>
       <p id="status">Choose an audio file and output folder to begin.</p>
       <ul id="outputs" hidden></ul>
+      <div class="job-actions">
+        <button id="show-worker-logs" type="button">View worker logs</button>
+        <button id="cancel-extraction" type="button" hidden>Cancel extraction</button>
+      </div>
     </section>
   </main>
   <script type="module" src="/main.js"></script>

@@ -9,5 +9,11 @@ export default defineConfig({
   build: {
     outDir: "../frontend-dist",
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: "tauri/frontend/index.html",
+        logs: "tauri/frontend/logs.html",
+      },
+    },
   },
 });
